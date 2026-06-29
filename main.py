@@ -84,6 +84,17 @@ class SendImageResult:
         return self.ok
 
 
+def _unwrap_event(event: Any) -> Any:
+    """从 ContextWrapper 中提取实际的 AstrMessageEvent"""
+    # 如果是 ContextWrapper，提取内部的 event
+    context = getattr(event, "context", None)
+    if context is not None:
+        inner_event = getattr(context, "event", None)
+        if inner_event is not None:
+            return inner_event
+    return event
+
+
 @dataclass(slots=True)
 class ExecutedImageTask:
     spec: ImageTaskSpec
@@ -2207,6 +2218,7 @@ class GiteeAIImagePlugin(Star):
         """
         prompt = (prompt or "").strip()
         m = (mode or "auto").strip().lower()
+        event = _unwrap_event(event)
 
         # === TTL 去重检查（防止 ToolLoop 重复调用）===
         message_id = (
@@ -2467,6 +2479,7 @@ class GiteeAIImagePlugin(Star):
             output(string): 输出尺寸/分辨率。例: 2048x2048 或 4K（不同后端支持能力不同，留空用默认）
         """
         prompt = str(prompt or "").strip()
+        event = _unwrap_event(event)
         if not prompt:
             await self._signal_llm_tool_failure(event)
             return self._llm_tool_text_result("Batch image planning failed because no prompt was provided.")
@@ -2601,6 +2614,7 @@ class GiteeAIImagePlugin(Star):
             )
 
         arg = (prompt or "").strip()
+        event = _unwrap_event(event)
         if not arg:
             await self._signal_llm_tool_failure(event)
             return self._llm_tool_text_result(
